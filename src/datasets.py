@@ -9,17 +9,15 @@ import random
 from copy import copy
 import numpy as np
 from . import config as cfg
-from .transforms import MelSpecTransformTorchAudio
+from .transforms import MelSpecTransformTorchAudio, Compose
 
 
 class IRMAS(tdata.Dataset):
     
     def __init__(self, root=cfg.irmas_path, mode='train',
-                 train_fraq=0.8,
-                 fs=22050, n_fft=1024, hop_length=256, n_mels=128, 
-                 time_slice=None, mono=True, normalize=True, 
-                 preprocess=False, seed=101, 
-                 is_test=False):
+                 train_fraq=0.8, fs=22050, n_fft=1024, hop_length=256, n_mels=128, 
+                 time_slice=None, mono=True, normalize=True, preprocess=False, seed=101, 
+                 is_test=False, orig_fs=44100, transforms=None):
         super().__init__()
         self.root = root
         self.mode = mode
@@ -32,6 +30,7 @@ class IRMAS(tdata.Dataset):
         self.time_slice = time_slice
         self.mono = mono
         self.seed = seed
+        self.orig_fs = orig_fs
         
         fns, labels = self.load_fns()
         if is_test:
@@ -43,10 +42,14 @@ class IRMAS(tdata.Dataset):
         self.classes = cfg.classes
         self.clsarr = np.array(self.classes)
         
-        self.trans = MelSpecTransformTorchAudio(
+        mel_trans = MelSpecTransformTorchAudio(
                 fs=self.fs, n_fft=self.n_fft, hop_length=self.hop_length, 
-                n_mels=self.n_mels, mono=self.mono, time_slice=self.time_slice, 
-                seed=self.seed)
+                n_mels=self.n_mels, mono=self.mono, seed=self.seed)
+
+        if transforms is not None:
+            self.trans = Compose([mel_trans] + transforms)
+        else:
+            self.trans = mel_trans
 
     def load_fns(self):
         labels = []
@@ -59,9 +62,11 @@ class IRMAS(tdata.Dataset):
                 files = sorted(os.listdir(path)) 
                 fns.extend([pjoin(path, f) for f in files])
                 labels.extend([_cls]*len(files))
-            random.seed(self.seed)
             idxs = list(range(len(fns)))
+            state = random.getstate()
+            random.seed(self.seed)
             random.shuffle(idxs)
+            random.setstate(state)
             fns = [fns[i] for i in idxs]
             labels = [labels[i] for i in idxs]
             if self.mode == 'train':
@@ -85,20 +90,20 @@ class IRMAS(tdata.Dataset):
                     fns.append(pjoin(folder_path, af))   
         return fns, labels
                 
-        
     def __len__(self):
         return len(self.fns)
-    
     
     def __getitem__(self, idx):
         fn = self.fns[idx]
         label = self.labels[idx]
-        mel_spec = self.trans(fn)
-        mel_spec = torch.log10(mel_spec)
+        audio, orig_fs = torchaudio.load(fn)
+        assert(orig_fs == self.orig_fs)
+        if self.time_slice is not None:
+            ind = random.randint(0, int(audio.shape[1] - self.time_slice * orig_fs) - 1)
+            audio = audio[:, ind: ind + int(self.time_slice * orig_fs)]
         if self.normalize:
-#            mel_spec = mel_spec - mel_spec.mean(axis=(-2, -1))[:, None, None] \
-#            / mel_spec.std(axis=(-2, -1))[:, None, None]
-            mel_spec = torch.clamp(mel_spec, min=-1, max=1)
+            audio = audio / torch.max(torch.abs(audio))
+        mel_spec = self.trans(audio)
         if isinstance(label, list):
             label_arr = np.zeros((len(self.classes,)))
             for item in list(set(label)):

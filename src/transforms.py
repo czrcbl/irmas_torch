@@ -1,5 +1,6 @@
 import torch
 import torchaudio
+from torchvision.transforms import Compose, Normalize
 from torchaudio import transforms as atrans
 import librosa
 import os
@@ -10,16 +11,30 @@ from functools import partial
 import random
 
 
+class AsImageTrans:
+
+    def __init__(self, mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)):
+        self.mean = mean
+        self.std = std
+        self.norm = Normalize(mean=mean, std=std)
+
+    def __call__(self, x):
+        x = x.clamp(0, 1)
+        x = x.repeat(3, 1, 1)
+        x = self.norm(x)
+        return x
+
+
 class MelSpecTransformBase:
     """Base class to convert audio file to a Mel Spectogram."""
     def __init__(self, fs=22050, n_fft=1024, hop_length=256, n_mels=128, 
-                 mono=True, time_slice=None, seed=101):
+                 mono=True, orig_fs=44100, seed=101):
         self.fs = fs
         self.n_fft = n_fft
         self.hop_length = hop_length
         self.n_mels = n_mels
         self.mono = mono
-        self.time_slice = time_slice
+        self.orig_fs = orig_fs
         random.seed(seed)
 
     def __call__(self, fn):
@@ -74,18 +89,13 @@ class MelSpecTransformTorchAudio(MelSpecTransformBase):
                 hop_length=self.hop_length, 
                 n_mels=self.n_mels)]
 
-    def __call__(self, fn):
-        audio, orig_fs = torchaudio.load(fn)
+    def __call__(self, audio):
         if self.mono:
             audio = audio.mean(axis=0)[None, :]
-        if self.time_slice is not None:
-            ind = random.randint(0, int(audio.shape[1] - self.time_slice * orig_fs) - 1)
-            audio = audio[:, ind: ind + int(self.time_slice * orig_fs)]
-        assert(orig_fs == self.orig_fs)
         out = audio
         for trans in self.trans:
             out = trans(out)
-
+        out = torch.log10(out)
         return out
 
 

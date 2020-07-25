@@ -11,20 +11,23 @@ import numpy as np
 import os
 from os.path import join as pjoin
 import sys
+import subprocess
 import logging
 import argparse
 from copy import deepcopy
 import json
 from tqdm import tqdm
+
 from src.utils import get_network
 from src.datasets import IRMAS
 from src import config as cfg
+from src import transforms
 
 
 def parse_args():
     parser = argparse.ArgumentParser()
     # misc
-    parser.add_argument('--is-test',type=int, default=1,
+    parser.add_argument('--is-test',type=int, default=0,
                         help='Whether it is a test.')
     parser.add_argument('--results-folder', default=cfg.results_path,
                         help='Where to save the model.')
@@ -35,9 +38,9 @@ def parse_args():
     parser.add_argument('--dataset-name', default='',
                         help='Name of the dataset.')
     ## Network args
-    parser.add_argument('--base-network', default='resnet50',
+    parser.add_argument('--base-network', default='resnet18',
                         help='Network to use as base.')
-    parser.add_argument('--transfer', type=int, default=1,
+    parser.add_argument('--transfer', action='store_true',
                         help='Whether to use transfer learning.')
     
     ## Preprocessing/dataset params
@@ -60,11 +63,19 @@ def parse_args():
                         help='Train learning rate')
     parser.add_argument('--batch_size', type=int, default=16,
                         help='Train and validation batch size.')
-    parser.add_argument('--epochs', type=int, default=100,
+    parser.add_argument('--epochs', type=int, default=40,
                         help='Number of epochs')
     parser.add_argument('--num-workers', type=int, default=16,
                         help='Number of cpu workers.')
+    # Test
+    parser.add_argument('--run_test', default=1, type=int,
+                        help='Whether to run the test script.')
     args = parser.parse_args()
+
+    # Validate args
+    if args.transfer and not args.mono:
+        raise ValueError('Transfer shoud be used with mono.')
+
     return args
 
 
@@ -85,8 +96,12 @@ class ModelSaver:
         
         
 def get_datasets(args):
-    trn_ds = IRMAS(mode='train', is_test=args.is_test)
-    val_ds = IRMAS(mode='val', is_test=args.is_test)
+    if args.transfer:
+        trans = [transforms.AsImageTrans()]
+    else:
+        trans = None
+    trn_ds = IRMAS(mode='train', is_test=args.is_test, transforms=trans)
+    val_ds = IRMAS(mode='val', is_test=args.is_test, transforms=trans)
     return trn_ds, val_ds
 
 
@@ -132,7 +147,7 @@ def train(net, trn_loader, val_loader, optmizer, criterion, epochs, device, args
         net.eval()
         y_true = []
         y_pred = []
-        accu_metric.reset()
+        # accu_metric.reset()
         with torch.no_grad():
             val_loss = 0
             logger.info(f'Epoch {epoch} validation starting.')
@@ -141,7 +156,7 @@ def train(net, trn_loader, val_loader, optmizer, criterion, epochs, device, args
                 y = net(data)
                 loss = criterion(y, target.float())
                 val_loss += loss.item()
-                y = F.sigmoid(y)
+                y = torch.sigmoid(y)
                 y_pred.append(y.cpu().numpy())
                 y_true.append(target.cpu().numpy())
                 accu_metric.update((y.round(), target))
@@ -168,14 +183,20 @@ def train(net, trn_loader, val_loader, optmizer, criterion, epochs, device, args
 
 def prepare_experiment(args):
     
-    
     if not args.dataset_name:
         dataset_name = ''
         for param in cfg.dataset_params:
             dataset_name = dataset_name + '~{}-{}'.format(param, vars(args)[param])
         dataset_name = dataset_name[1:]
+        args.dataset_name = dataset_name
     else:
         dataset_name = args.dataset_name
+
+    # Change dataset name if it is a test
+    if args.is_test:
+        dataset_name = 'test'
+        args.dataset_name = dataset_name
+    
     dataset_path = pjoin(args.results_folder, dataset_name)
     if not os.path.isdir(dataset_path):
         os.makedirs(dataset_path)
@@ -186,20 +207,24 @@ def prepare_experiment(args):
         for param in cfg.network_params:
             model_name = model_name + '~{}-{}'.format(param, vars(args)[param])
         model_name = model_name[1:]
+        args.model_name = model_name
     else:
         model_name = args.model_name
+
+    # Change model name if it is a test
     if args.is_test:
         model_name = 'test_0'
         i = 1
         while model_name in os.listdir(dataset_path):
             model_name = f'test_{i}'
             i += 1
+    
     model_path = pjoin(dataset_path, model_name)
     if os.path.isdir(model_path):
         raise ValueError(f'Model {model_name} for dataset {dataset_name} already exist.')
     else:
         os.makedirs(model_path)
-
+    args.model_name = model_name
     args.output_path = model_path
     
     
@@ -209,7 +234,7 @@ def main():
     prepare_experiment(args)
 
     if args.is_test:
-        args.epochs = 5
+        args.epochs = 3
     with open(pjoin(args.output_path, 'parameters.json'), 'w') as f:
         json.dump(args.__dict__, f)
     trn_ds, val_ds = get_datasets(args)
@@ -220,6 +245,17 @@ def main():
     criterion = nn.BCEWithLogitsLoss()
     train(net, trn_loader, val_loader, optmizer, criterion, args.epochs, device, args)
 
+    if args.run_test:
+        command = f"""
+            python test.py
+            --dataset-name {args.dataset_name}
+            --model-name {args.model_name}
+            --strategy all
+            --device {args.device}
+            --is-test {args.is_test}
+            --store-activations
+        """
+        subprocess.call(command.split())
 
 if __name__ == '__main__':
     sys.exit(main())
