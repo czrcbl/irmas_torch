@@ -1,15 +1,43 @@
 import torch
 import torchaudio
-from torchvision.transforms import Compose, Normalize
+from torchvision.transforms import Compose
 from torchaudio import transforms as atrans
-import librosa
 import os
 from os.path import join as pjoin
 import numpy as np
-from multiprocessing import Pool
-from functools import partial
 import random
 
+
+class Slice(torch.nn.Module):
+    
+    def __init__(self, time=1, fs=44100):
+        super().__init__()
+        self.time = time
+        self.fs = fs
+        
+    def forward(self, x):
+        ind = random.randint(0, int(x.shape[1] - self.time * self.fs) - 1)
+        audio = x[:, ind: ind + int(self.time * self.fs)]
+        
+        return audio
+    
+class Normalize(torch.nn.Module):
+    
+    def __init__(self):
+        super().__init__()
+    
+    def forward(self, x):
+        x = x / torch.max(x, axis=1)[0]
+        return x
+ 
+   
+class Mono(torch.nn.Module):
+    
+    def __init__(self):
+        super().__init__()
+    
+    def forward(self, x):
+        return x.mean(axis=0)[None, :]
 
 class AsImageTrans:
 
@@ -51,31 +79,6 @@ class MelSpecTransformBase:
             np.save(out_fn, out_spec)
 
 
-class MelSpecTransformRosa(MelSpecTransformBase):
-    """Transform data with librosa."""
-    def __init__(self, **kargs):
-        super().__init__(**kargs)
-
-    def __call__(self, fn):
-        audio, orig_fs = librosa.core.load(fn, sr=None, mono=self.mono)
-        audio = librosa.core.resample(audio, orig_fs, self.fs)
-        if len(audio.shape) > 1:
-            out = []
-            for i in range(audio.shape[0]):
-                ch = np.asfortranarray(audio[i, :])
-                chspec = librosa.feature.melspectrogram(
-                    y=ch, sr=self.fs, n_fft=self.n_fft, hop_length=self.hop_length, 
-                    window='hann', center=True, pad_mode='reflect', power=2.0)
-                out.append(chspec)
-            spec = np.stack(out)
-        else:
-            spec = librosa.feature.melspectrogram(
-                y=audio, sr=self.fs, n_fft=self.n_fft, hop_length=self.hop_length, 
-                window='hann', center=True, pad_mode='reflect', power=2.0)
-            spec = spec[None, :, :]
-        return spec
-
-
 class MelSpecTransformTorchAudio(MelSpecTransformBase):
     """Transform audio with torchaudio"""
     def __init__(self, orig_fs=44100, **kargs):
@@ -98,17 +101,4 @@ class MelSpecTransformTorchAudio(MelSpecTransformBase):
         out = torch.log10(out)
         return out
 
-
-class TransformPool:
-
-    def __init__(self, trans, n_workers=8):
-        self.trans = trans
-        self.pool = Pool(processes=n_workers)
-
-    def to_file(self, fns, output_path):
-        trans_part = partial(self.trans.to_file, output_path=output_path)
-        self.pool.map(trans_part, fns)
-
-    def __call__(self, fns):
-        return self.pool.map(self.trans, fns)
 
