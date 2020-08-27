@@ -1,4 +1,6 @@
 import argparse
+import os
+from os.path import join as pjoin
 from easydict import EasyDict as edict
 import yaml 
 try:
@@ -98,9 +100,17 @@ def parse_args():
 def main():
     args = parse_args()
     with open(args.expfile, 'r') as f:
-        params = yaml.load(f, Loader=Loader)
-        params = edict(params)
+        params_dict = yaml.load(f, Loader=Loader)
+        params = edict(params_dict)
     
+    try:
+        os.makedirs(params.root)
+    except OSError:
+        raise ValueError('Root folder already exists.')
+    
+    with open(pjoin(params.root, 'expfile.yaml'), 'w') as f:
+        yaml.dump(params, f)
+        
     transforms = get_transfroms(params)
     trn_ds, val_ds = get_datasets(transforms, params)
     trn_loader, val_loader = get_dataloaders(trn_ds, val_ds, params)
@@ -108,5 +118,6 @@ def main():
     criterion = nn.BCEWithLogitsLoss()
     trainer = Trainer(params.root, model, trn_loader, val_loader, criterion=criterion, device=params.train.device)
     trainer.train(params.train.epochs)
+
 if __name__ == '__main__':
     main()

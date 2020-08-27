@@ -48,10 +48,10 @@ class Trainer:
                  optimizer=None, scheduler=None, device='cuda'):
         
         self.root = root
-        try:
-            os.makedirs(root)
-        except OSError:
-            raise ValueError('Experiment Already Exists!')
+        # try:
+        #     os.makedirs(root)
+        # except OSError:
+        #     raise ValueError('Experiment Already Exists!')
         self.device = device
         self.model = model.to(device)
         self.trn_loader = trn_loader
@@ -115,7 +115,7 @@ class Trainer:
             with torch.no_grad():
                 val_loss = 0
                 logger.info(f'Epoch {epoch} validation starting.')
-                for i, (data, target) in tqdm(enumerate(trn_loader)):
+                for i, (data, target) in tqdm(enumerate(val_loader)):
                     data, target = data.to(device), target.to(device)
                     y = net(data)
                     loss = criterion(y, target.float())
