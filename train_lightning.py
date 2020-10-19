@@ -11,10 +11,7 @@ import numpy as np
 
 
 @hydra.main(config_path='config', config_name='config')
-def main(cfg: DictConfig):
-    
-    print(cfg)
-    
+def main(cfg: DictConfig):  
     model = IrmasModule(**cfg)
     logger = pl.loggers.TensorBoardLogger('.')
     trainer = pl.Trainer(gpus=1, logger=logger, max_epochs=cfg.max_epochs, profiler=True, weights_summary='full')
