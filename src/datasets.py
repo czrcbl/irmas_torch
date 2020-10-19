@@ -10,11 +10,10 @@ from copy import copy
 import numpy as np
 from . import config as cfg
 from .transforms import MelSpecTransformTorchAudio, Compose
-
-
+    
 class IRMAS(tdata.Dataset):
     
-    def __init__(self, transform, root=cfg.irmas_path, mode='train', train_fraq=0.8, seed=101):
+    def __init__(self, transform, root, mode='train', train_fraq=0.8, seed=101):
         super().__init__()
         self.root = root
         self.mode = mode
@@ -83,4 +82,4 @@ class IRMAS(tdata.Dataset):
             
         out = self.trans(audio)
         
-        return out, torch.tensor(label_arr, dtype=torch.long)
+        return out, torch.tensor(label_arr, dtype=torch.float32)

@@ -56,7 +56,7 @@ class AsImageTrans:
 class MelSpecTransformBase:
     """Base class to convert audio file to a Mel Spectogram."""
     def __init__(self, fs=22050, n_fft=1024, hop_length=256, n_mels=128, 
-                 mono=True, orig_fs=44100, seed=101):
+                 mono=True, orig_fs=44100, seed=101, **kargs):
         self.fs = fs
         self.n_fft = n_fft
         self.hop_length = hop_length
@@ -99,6 +99,7 @@ class MelSpecTransformTorchAudio(MelSpecTransformBase):
         for trans in self.trans:
             out = trans(out)
         out = torch.log10(out)
+        out = torch.clamp(out, -1, 1)
         return out
 
 

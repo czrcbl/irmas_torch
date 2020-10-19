@@ -1,0 +1,5 @@
+# @package _global_
+dataset_name: irmas
+dataset_path: /home/cezar/Projects/irmas_torch/data/IRMAS
+orig_fs: 44100
+classes: ['cel', 'cla', 'flu', 'gac', 'gel', 'org', 'pia', 'sax', 'tru', 'vio', 'voi']

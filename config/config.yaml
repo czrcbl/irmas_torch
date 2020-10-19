@@ -1,0 +1,7 @@
+projectname: irmas_torch
+
+defaults:
+  - dataset: irmas
+  - experiment: default
+  - train: default
+  - transform: default

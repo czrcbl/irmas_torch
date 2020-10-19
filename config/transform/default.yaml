@@ -1,0 +1,10 @@
+# @package _global_
+orig_fs: 44100
+fs: 22050
+time_slice: 1
+mono: True
+normalize: True
+n_fft: 1024
+hop_length: 256
+n_mels: 128
+as_img: False
