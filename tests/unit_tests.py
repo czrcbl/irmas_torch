@@ -2,8 +2,8 @@ import torch
 import unittest
 import os
 from os.path import join as pjoin
-from src import transforms, datasets
-from src import config as cfg
+from irmas_torch import transforms, datasets
+from irmas_torch import config as cfg
 
 
 project_path = os.path.dirname(os.path.abspath(os.path.realpath(__file__)))

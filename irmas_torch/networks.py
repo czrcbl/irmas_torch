@@ -1,3 +1,4 @@
+import math
 import torch
 from torch import nn
 from torch.nn import functional as F
@@ -53,14 +54,41 @@ class NetworkTop(nn.Module):
     
 class RConv(nn.Module):
     
-    def __init__(self, in_channels, out_channels, kernel_size, stride, *args, **kargs):
+    def __init__(self, in_channels, out_channels, kernel_size, stride, padding='same', *args, **kargs):
         super().__init__(*args, **kargs)
-        self.conv0 = nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size, stride=stride, padding=[(k - 1)//2 for k in kernel_size])
+        
+        # padding chosen in order to mantain size if no strida, ou reduce size to input_dim/stride
+        self.kernel_size = kernel_size
+        self.stride = stride
+        try:
+            self.kh = self.kernel_size[0] # height dim
+            self.kw = self.kernel_size[1] # width dim
+        except (IndexError, TypeError):
+            self.kh = self.kw = self.kernel_size
+        try:
+            self.sh = self.stride[0] # height dim
+            self.sw = self.stride[1] # width dim
+        except (IndexError, TypeError):
+            self.sh = self.sw = self.stride
+            
+        self.conv0 = nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size, stride=stride)
         self.bnorm0 = nn.BatchNorm2d(out_channels)
         self.relu0 = nn.ReLU()
         
     def forward(self, x, residual=None):
         
+        kw, kh, sw, sh = self.kw, self.kh, self.sw, self.sh
+        Niw = x.shape[-1]
+        Nih = x.shape[-2]
+        Now = math.ceil(Niw / sw)
+        Noh = math.ceil(Nih / sh) 
+        pw = max(sw * (Now - 1) - Niw + kw, 0)
+        ph = max(sh * (Noh - 1) - Nih + kh, 0)
+        padl =  pw // 2
+        padr = pw - padl
+        padt =  ph // 2
+        padb = ph - padt
+        x = F.pad(x, (padl, padr, padt, padb), value=0)
         x = self.conv0(x)
         x = self.bnorm0(x)
         if residual is not None:

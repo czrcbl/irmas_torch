@@ -1,5 +1,5 @@
 # @package _global_
-name: default
+experiment_name: default
 # hydra:
 #   run:
 #     dir: ./data/outputs/default

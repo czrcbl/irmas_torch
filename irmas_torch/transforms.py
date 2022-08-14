@@ -39,20 +39,6 @@ class Mono(torch.nn.Module):
     def forward(self, x):
         return x.mean(axis=0)[None, :]
 
-class AsImageTrans:
-
-    def __init__(self, mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)):
-        self.mean = mean
-        self.std = std
-        self.norm = Normalize(mean=mean, std=std)
-
-    def __call__(self, x):
-        x = x.clamp(0, 1)
-        x = x.repeat(3, 1, 1)
-        x = self.norm(x)
-        return x
-
-
 class MelSpecTransformBase:
     """Base class to convert audio file to a Mel Spectogram."""
     def __init__(self, fs=22050, n_fft=1024, hop_length=256, n_mels=128, 
@@ -98,8 +84,8 @@ class MelSpecTransformTorchAudio(MelSpecTransformBase):
         out = audio
         for trans in self.trans:
             out = trans(out)
-        out = torch.log10(out)
-        out = torch.clamp(out, -1, 1)
-        return out
+        # out = torch.log10(out)
+        sout = (out - torch.mean(out))/torch.max(torch.abs(out))
+        return sout
 
 

@@ -1,7 +1,14 @@
 projectname: irmas_torch
 
+hydra:
+  run:
+    dir: ./outputs/${now:%Y-%m-%d}/${now:%H-%M-%S}/${experiment_name}/
+
 defaults:
   - dataset: irmas
   - experiment: default
   - train: default
   - transform: default
+
+scheduler_patience: 6
+early_stopping_patience: 10

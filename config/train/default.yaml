@@ -4,5 +4,5 @@ num_workers: 8
 lr: 0.001
 decay_step: 1
 gamma: 0.95
-batch_size: 32
+batch_size: 16
 max_epochs: 10

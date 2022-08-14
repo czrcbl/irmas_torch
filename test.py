@@ -22,10 +22,10 @@ from tqdm import tqdm
 from easydict import EasyDict as edict
 import pickle
 
-from src.datasets import IRMAS
-from src.utils import get_network
-from src import config as cfg
-from src import transforms
+from irmas_torch.datasets import IRMAS
+from irmas_torch.utils import get_network
+from irmas_torch import config as cfg
+from irmas_torch import transforms
 
 
 def parse_args():

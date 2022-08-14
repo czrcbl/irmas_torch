@@ -4,8 +4,8 @@ import os
 from os.path import join as pjoin
 import time
 import numpy as np
-from src import transforms
-from src.datasets import IRMAS
+from irmas_torch import transforms
+from irmas_torch.datasets import IRMAS
 
 project_path = os.path.dirname(os.path.abspath(os.path.realpath(__file__)))
 
