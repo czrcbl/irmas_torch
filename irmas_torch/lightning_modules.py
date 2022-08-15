@@ -53,9 +53,6 @@ class ResnetIrmas(pl.LightningModule):
         self.val_recall = torchmetrics.Recall(multilabel=True, threshold=0.5)
         self.val_precision = torchmetrics.Precision(multilabel=True, threshold=0.5)
         self.val_accuracy = torchmetrics.Recall(multilabel=True, threshold=0.5)
-        self.val_accuracy_top_3 = torchmetrics.Accuracy(
-            multilabel=True, threshold=0.5, top_k=3
-        )
         self.val_f1 = torchmetrics.F1Score(multilabel=True, threshold=0.5)
 
     def forward(self, x):
@@ -105,7 +102,6 @@ class ResnetIrmas(pl.LightningModule):
         self.val_recall(y_pred, y.to(torch.int))
         self.val_precision(y_pred, y.to(torch.int))
         self.val_accuracy(y_pred, y.to(torch.int))
-        self.val_accuracy_top_3(y_pred, y.to(torch.int))
         self.val_f1(y_pred, y.to(torch.int))
 
         # Logging
@@ -129,14 +125,6 @@ class ResnetIrmas(pl.LightningModule):
         self.log(
             "val_accuracy",
             self.val_accuracy,
-            prog_bar=True,
-            logger=True,
-            on_epoch=True,
-            on_step=False,
-        )
-        self.log(
-            "val_accuracy_top_3",
-            self.val_accuracy_top_3,
             prog_bar=True,
             logger=True,
             on_epoch=True,
