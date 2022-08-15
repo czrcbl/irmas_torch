@@ -15,7 +15,9 @@ from .transforms import MelSpecTransformTorchAudio, Compose
 class IRMASDataset(tdata.Dataset):
     """"""
 
-    def __init__(self, transform, root, mode="train", train_fraq=0.9, seed=101):
+    def __init__(
+        self, transform, root, mode="train", train_fraq=0.9, seed=101, **kwargs
+    ):
         super().__init__()
         self.root = root
         self.mode = mode

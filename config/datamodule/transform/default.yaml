@@ -1,4 +1,4 @@
-# @package _global_
+# @package _group_
 orig_fs: 44100
 fs: 22050
 time_slice: 1

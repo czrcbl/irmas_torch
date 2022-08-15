@@ -7,6 +7,7 @@ from irmas_torch import networks, datasets, transforms
 from sklearn import metrics as skmetrics
 import numpy as np
 import torchmetrics
+import hydra
 
 
 class DataModule(pl.LightningDataModule):
@@ -16,64 +17,58 @@ class DataModule(pl.LightningDataModule):
 
     def setup(self, stage):
         hp = self.hparams
-        # print(hp)
-        self.trn_trans = transforms.MelSpecTransformTorchAudio(**hp)
-        self.val_trans = transforms.MelSpecTransformTorchAudio(**hp)
-        self.test_trans = transforms.MelSpecTransformTorchAudio(**hp)
+        self.trn_trans = transforms.MelSpecTransformTorchAudio(**hp.transform)
+        self.val_trans = transforms.MelSpecTransformTorchAudio(**hp.transform)
+        self.test_trans = transforms.MelSpecTransformTorchAudio(**hp.transform)
 
-        print(hp)
-        self.trn_ds = datasets.IRMASDataset(
-            self.trn_trans, root=hp.dataset_path, mode="train"
-        )
-        self.val_ds = datasets.IRMASDataset(
-            self.val_trans, root=hp.dataset_path, mode="val"
-        )
-        self.test_ds = datasets.IRMASDataset(
-            self.test_trans, root=hp.dataset_path, mode="test"
-        )
+        self.trn_ds = datasets.IRMASDataset(self.trn_trans, mode="train", **hp.dataset)
+        self.val_ds = datasets.IRMASDataset(self.val_trans, mode="val", **hp.dataset)
+        self.test_ds = datasets.IRMASDataset(self.test_trans, mode="test", **hp.dataset)
         print("train dataset", len(self.trn_ds))
 
     def train_dataloader(self):
         hp = self.hparams
-        return tdata.DataLoader(
-            self.trn_ds, hp.batch_size, num_workers=hp.num_workers, shuffle=True
-        )
+        return tdata.DataLoader(self.trn_ds, **hp.dataloader.train)
 
     def val_dataloader(self):
         hp = self.hparams
-        return tdata.DataLoader(
-            self.val_ds, hp.batch_size, num_workers=hp.num_workers, shuffle=False
-        )
+        return tdata.DataLoader(self.val_ds, **hp.dataloader.train)
 
     def test_dataloader(self):
         hp = self.hparams
-        return tdata.DataLoader(
-            self.test_ds, hp.batch_size, num_workers=hp.num_workers, shuffle=False
-        )
+        return tdata.DataLoader(self.test_ds, **hp.dataloader.train)
 
 
 class ResnetIrmas(pl.LightningModule):
     def __init__(self, *args, **kargs):
         super().__init__()
         self.save_hyperparameters()
-        self.lr = self.hparams.lr
+        self.lr = self.hparams.module.optimizer.lr
 
         self.criterion = nn.BCEWithLogitsLoss()
-        self.net = networks.Resnet18(outdim=11)
+        # self.net = networks.Resnet18(outdim=11)
+        self.net = hydra.utils.instantiate(self.hparams.module.model)
 
         # Metrics
         self.val_recall = torchmetrics.Recall(multilabel=True, threshold=0.5)
         self.val_precision = torchmetrics.Precision(multilabel=True, threshold=0.5)
         self.val_accuracy = torchmetrics.Recall(multilabel=True, threshold=0.5)
-        self.val_accuracy_top_3 = torchmetrics.Recall(
+        self.val_accuracy_top_3 = torchmetrics.Accuracy(
             multilabel=True, threshold=0.5, top_k=3
         )
+        self.val_f1 = torchmetrics.F1Score(multilabel=True, threshold=0.5)
 
     def forward(self, x):
         return self.net(x)
 
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.parameters(), self.lr)
+
+        optimizer = hydra.utils.instantiate(
+            self.hparams.module.optimizer, self.parameters(), lr=self.lr
+        )
+        # optimizer = torch.optim.Adam(
+        #     self.parameters(), self.lr, **self.hparams.module.optimizer
+        # )
 
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
             optimizer,
@@ -92,7 +87,6 @@ class ResnetIrmas(pl.LightningModule):
             "lr_scheduler": scheduler,
             "monitor": "val_loss",
         }
-        return optimizer
 
     def training_step(self, batch, batch_id):
 
@@ -112,6 +106,7 @@ class ResnetIrmas(pl.LightningModule):
         self.val_precision(y_pred, y.to(torch.int))
         self.val_accuracy(y_pred, y.to(torch.int))
         self.val_accuracy_top_3(y_pred, y.to(torch.int))
+        self.val_f1(y_pred, y.to(torch.int))
 
         # Logging
         self.log("val_loss", loss.item(), prog_bar=True)
@@ -142,6 +137,14 @@ class ResnetIrmas(pl.LightningModule):
         self.log(
             "val_accuracy_top_3",
             self.val_accuracy_top_3,
+            prog_bar=True,
+            logger=True,
+            on_epoch=True,
+            on_step=False,
+        )
+        self.log(
+            "val_f1",
+            self.val_f1,
             prog_bar=True,
             logger=True,
             on_epoch=True,

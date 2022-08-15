@@ -1,0 +1,10 @@
+batch_size: 8
+num_workers: 8
+train:
+  batch_size: ${datamodule.dataloader.batch_size}
+  num_workers: ${datamodule.dataloader.num_workers}
+  shuffle: true
+val:
+  batch_size: ${datamodule.dataloader.batch_size}
+  num_workers: ${datamodule.dataloader.num_workers}
+  shuffle: false

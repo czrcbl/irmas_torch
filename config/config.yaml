@@ -5,10 +5,16 @@ hydra:
     dir: ./outputs/${now:%Y-%m-%d}/${now:%H-%M-%S}/${experiment_name}/
 
 defaults:
-  - dataset: irmas
-  - experiment: default
-  - train: default
-  - transform: default
+  - _self_
+  # - dataset: irmas
+  - experiment/default
+  - train/default
+  - datamodule/default
+  - trainer/default
+  - module/default
 
 scheduler_patience: 6
 early_stopping_patience: 10
+
+project_name: irmas_torch
+task_name: clearml

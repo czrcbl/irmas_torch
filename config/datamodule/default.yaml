@@ -1,0 +1,4 @@
+defaults:
+  - dataset: irmas
+  - dataloader: default
+  - transform: default

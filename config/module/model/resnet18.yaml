@@ -1,0 +1,3 @@
+_target_: irmas_torch.networks.Resnet18
+in_channels: ${datamodule.dataset.input_dim}
+outdim: ${datamodule.dataset.output_dim}
