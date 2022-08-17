@@ -2,8 +2,7 @@ import pytorch_lightning as pl
 import hydra
 from omegaconf import DictConfig
 from irmas_torch import lightning_modules as lm
-import clearml
-from clearml.binding.frameworks import WeightsFileHandler
+
 
 
 # def callback_function(operation_type, model_info):
@@ -26,8 +25,6 @@ from clearml.binding.frameworks import WeightsFileHandler
 @hydra.main(config_path="config", config_name="config", version_base="1.1")
 def main(cfg: DictConfig):
 
-    task = clearml.Task.init(project_name=cfg.project_name, task_name=cfg.task_name)
-    # WeightsFileHandler.add_pre_callback(callback_function)
     data_module = lm.DataModule(**cfg.datamodule)
     print(cfg.datamodule)
     model = lm.ResnetIrmas(**cfg)
@@ -35,16 +32,16 @@ def main(cfg: DictConfig):
 
     callbacks = [
         pl.callbacks.early_stopping.EarlyStopping(
-            monitor="val_f1",
+            monitor=cfg.watch_metric,
             min_delta=0.00,
             patience=cfg.early_stopping_patience,
             verbose=False,
-            mode="min",
+            mode=watch_metric_mode,
         ),
         pl.callbacks.ModelCheckpoint(
             dirpath=f"{logger.save_dir}/checkpoints",
-            monitor="val_f1",
-            mode="max",
+            monitor=cfg.watch_metric,
+            mode=cfg.watch_metric_mode,
             auto_insert_metric_name=True,
             save_last=True,
         ),

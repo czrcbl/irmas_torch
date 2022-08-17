@@ -1,8 +1,6 @@
 # @package _global_
 experiment_name: default
-# hydra:
-#   run:
-#     dir: ./data/outputs/default
+
 
 trainer:
   max_epochs: 100

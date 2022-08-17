@@ -18,3 +18,6 @@ early_stopping_patience: 10
 
 project_name: irmas_torch
 task_name: clearml
+
+watch_metric: val_f1
+watch_metric_mode: max

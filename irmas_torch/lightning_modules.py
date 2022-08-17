@@ -46,7 +46,6 @@ class ResnetIrmas(pl.LightningModule):
         self.lr = self.hparams.module.optimizer.lr
 
         self.criterion = nn.BCEWithLogitsLoss()
-        # self.net = networks.Resnet18(outdim=11)
         self.net = hydra.utils.instantiate(self.hparams.module.model)
 
         # Metrics
@@ -60,18 +59,17 @@ class ResnetIrmas(pl.LightningModule):
 
     def configure_optimizers(self):
 
+        hp = self.hparams
+
         optimizer = hydra.utils.instantiate(
-            self.hparams.module.optimizer, self.parameters(), lr=self.lr
+            hp.module.optimizer, self.parameters(), lr=self.lr
         )
-        # optimizer = torch.optim.Adam(
-        #     self.parameters(), self.lr, **self.hparams.module.optimizer
-        # )
 
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
             optimizer,
-            mode="min",
+            mode=hp.watch_metric_mode,
             factor=0.1,
-            patience=self.hparams.scheduler_patience,
+            patience=hp.scheduler_patience,
             threshold=0.0001,
             threshold_mode="rel",
             cooldown=0,
@@ -82,7 +80,7 @@ class ResnetIrmas(pl.LightningModule):
         return {
             "optimizer": optimizer,
             "lr_scheduler": scheduler,
-            "monitor": "val_loss",
+            "monitor": hp.watch_metric,
         }
 
     def training_step(self, batch, batch_id):
@@ -140,6 +138,7 @@ class ResnetIrmas(pl.LightningModule):
         )
 
         outputs = {"loss": loss, "y_pred": y_pred.cpu(), "y": y.cpu()}
+        
         return outputs
 
     def validation_epoch_end(self, outputs):
