@@ -2,7 +2,7 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 from torch.utils import data as tdata
-import pytorch_lightning as pl
+import lightning.pytorch as pl
 from irmas_torch import networks, datasets, transforms
 from sklearn import metrics as skmetrics
 import numpy as np
@@ -17,9 +17,15 @@ class DataModule(pl.LightningDataModule):
 
     def setup(self, stage):
         hp = self.hparams
+        # Train on random time_slice crops, validate on the centre crop, test on
+        # whole clips (test excerpts have variable length).
         self.trn_trans = transforms.MelSpecTransformTorchAudio(**hp.transform)
-        self.val_trans = transforms.MelSpecTransformTorchAudio(**hp.transform)
-        self.test_trans = transforms.MelSpecTransformTorchAudio(**hp.transform)
+        self.val_trans = transforms.MelSpecTransformTorchAudio(
+            **hp.transform, random_slice=False
+        )
+        self.test_trans = transforms.MelSpecTransformTorchAudio(
+            **{**hp.transform, "time_slice": None}
+        )
 
         self.trn_ds = datasets.IRMASDataset(self.trn_trans, mode="train", **hp.dataset)
         self.val_ds = datasets.IRMASDataset(self.val_trans, mode="val", **hp.dataset)
@@ -32,11 +38,11 @@ class DataModule(pl.LightningDataModule):
 
     def val_dataloader(self):
         hp = self.hparams
-        return tdata.DataLoader(self.val_ds, **hp.dataloader.train)
+        return tdata.DataLoader(self.val_ds, **hp.dataloader.val)
 
     def test_dataloader(self):
         hp = self.hparams
-        return tdata.DataLoader(self.test_ds, **hp.dataloader.train)
+        return tdata.DataLoader(self.test_ds, **hp.dataloader.val)
 
 
 class ResnetIrmas(pl.LightningModule):
@@ -49,10 +55,14 @@ class ResnetIrmas(pl.LightningModule):
         self.net = hydra.utils.instantiate(self.hparams.module.model)
 
         # Metrics
-        self.val_recall = torchmetrics.Recall(multilabel=True, threshold=0.5)
-        self.val_precision = torchmetrics.Precision(multilabel=True, threshold=0.5)
-        self.val_accuracy = torchmetrics.Recall(multilabel=True, threshold=0.5)
-        self.val_f1 = torchmetrics.F1Score(multilabel=True, threshold=0.5)
+        n_labels = self.hparams.datamodule.dataset.output_dim
+        metric_kw = dict(task="multilabel", num_labels=n_labels, threshold=0.5)
+        self.val_recall = torchmetrics.Recall(**metric_kw)
+        self.val_precision = torchmetrics.Precision(**metric_kw)
+        # Subset accuracy: all labels of a clip must be right
+        self.val_accuracy = torchmetrics.ExactMatch(**metric_kw)
+        self.val_f1 = torchmetrics.F1Score(**metric_kw)
+        self.val_outputs = []
 
     def forward(self, x):
         return self.net(x)
@@ -75,7 +85,6 @@ class ResnetIrmas(pl.LightningModule):
             cooldown=0,
             min_lr=0,
             eps=1e-08,
-            verbose=True,
         )
         return {
             "optimizer": optimizer,
@@ -138,15 +147,16 @@ class ResnetIrmas(pl.LightningModule):
         )
 
         outputs = {"loss": loss, "y_pred": y_pred.cpu(), "y": y.cpu()}
-        
+        self.val_outputs.append(outputs)
         return outputs
 
-    def validation_epoch_end(self, outputs):
+    def on_validation_epoch_end(self):
         y_pred = []
         y = []
-        for out in outputs:
+        for out in self.val_outputs:
             y_pred.append(out["y_pred"].numpy())
             y.append(out["y"].numpy())
+        self.val_outputs.clear()
 
         y_pred = np.vstack(y_pred)
         y = np.vstack(y)

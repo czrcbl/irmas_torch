@@ -1,4 +1,3 @@
-# @package _group_
 dataset_name: irmas
 root: /home/cezar/Projects/irmas_torch/data/IRMAS
 output_dim: 11

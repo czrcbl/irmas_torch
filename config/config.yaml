@@ -3,6 +3,9 @@ projectname: irmas_torch
 hydra:
   run:
     dir: ./outputs/${now:%Y-%m-%d}/${now:%H-%M-%S}/${experiment_name}/
+  job:
+    # Run inside the output dir (Hydra 1.1 default); loggers write to "."
+    chdir: true
 
 defaults:
   - _self_

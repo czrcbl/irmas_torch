@@ -1,8 +1,6 @@
 import torch
 from torch.utils import data as tdata
-import torchaudio
-from torchaudio import transforms as tatrans
-from torchvision import transforms as tvtrans
+import soundfile as sf
 import os
 from os.path import join as pjoin
 import random
@@ -72,11 +70,11 @@ class IRMASDataset(tdata.Dataset):
                 if os.path.splitext(f)[-1] == ".wav"
             ]
             for af in audio_files:
-                labels_file = pjoin(folder_path, os.path.splitext(af)[0] + ".txt")
+                labels_file = os.path.splitext(af)[0] + ".txt"
                 with open(labels_file, "r") as f:
                     lines = [l.strip() for l in f.readlines()]
                 labels.append(lines)
-                fns.append(pjoin(folder_path, af))
+                fns.append(af)
         return fns, labels
 
     def load_files(self):
@@ -88,7 +86,10 @@ class IRMASDataset(tdata.Dataset):
     def load_audio(self, idx):
         fn = self.fns[idx]
         label = self.labels[idx]
-        audio, orig_fs = torchaudio.load(fn)
+        # soundfile instead of torchaudio.load, which needs TorchCodec + FFmpeg
+        # since torchaudio 2.9 (see docs/decisions/002).
+        data, orig_fs = sf.read(fn, dtype="float32", always_2d=True)
+        audio = torch.from_numpy(data.T.copy())  # (channels, samples)
         return audio, orig_fs, label
 
     def __getitem__(self, idx):

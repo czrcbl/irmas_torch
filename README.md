@@ -6,8 +6,20 @@ This project applies known architectures to the task of predominant musical inst
 
 The networks are implemented in [PyTorch](https://pytorch.org/), and rely on [TorchAudio](https://pytorch.org/audio/) and [TorchVision](https://pytorch.org/docs/stable/torchvision/index.html).
 
+## Setup
+
+Requires Python 3.14 and [uv](https://docs.astral.sh/uv/).
+
+```sh
+uv sync
+uv run python train.py                       # train with config/ (Hydra)
+uv run python train.py +experiment=exp0      # also apply config/experiment/exp0.yaml
+```
+
+See [`docs/`](docs/README.md) for how it works and why.
+
 ## Content:
-* The `src` folder contains all the utilities, such as transforms and datasets.
+* The `irmas_torch` folder contains all the utilities, such as transforms and datasets.
 * The `train.py` file is a commandline utility to start the training process.
 * The `test.py` file is a script to perform predictions on the the test set.
 * On the `nbs` folder, notebooks displaying the results can be seen.

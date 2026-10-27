@@ -1,4 +1,4 @@
-import pytorch_lightning as pl
+import lightning.pytorch as pl
 import hydra
 from omegaconf import DictConfig
 from irmas_torch import lightning_modules as lm
@@ -22,7 +22,7 @@ from irmas_torch import lightning_modules as lm
 #     return None
 
 
-@hydra.main(config_path="config", config_name="config", version_base="1.1")
+@hydra.main(config_path="config", config_name="config")
 def main(cfg: DictConfig):
 
     data_module = lm.DataModule(**cfg.datamodule)
@@ -36,7 +36,7 @@ def main(cfg: DictConfig):
             min_delta=0.00,
             patience=cfg.early_stopping_patience,
             verbose=False,
-            mode=watch_metric_mode,
+            mode=cfg.watch_metric_mode,
         ),
         pl.callbacks.ModelCheckpoint(
             dirpath=f"{logger.save_dir}/checkpoints",
@@ -48,12 +48,6 @@ def main(cfg: DictConfig):
         pl.callbacks.LearningRateMonitor(),
     ]
 
-    trainer = pl.Trainer(
-        gpus=1,
-        logger=logger,
-        max_epochs=cfg.max_epochs,
-        callbacks=callbacks,
-    )
     trainer = hydra.utils.instantiate(
         cfg.trainer,
         logger=logger,

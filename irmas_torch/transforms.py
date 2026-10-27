@@ -67,9 +67,11 @@ class MelSpecTransformBase:
 
 class MelSpecTransformTorchAudio(MelSpecTransformBase):
     """Transform audio with torchaudio"""
-    def __init__(self, orig_fs=44100, **kargs):
+    def __init__(self, orig_fs=44100, time_slice=None, random_slice=True, **kargs):
         super().__init__(**kargs)
         self.orig_fs = orig_fs
+        self.slice_len = int(time_slice * orig_fs) if time_slice else None
+        self.random_slice = random_slice
         self.trans = [
             atrans.Resample(self.orig_fs, self.fs),
             atrans.MelSpectrogram(
@@ -78,7 +80,19 @@ class MelSpecTransformTorchAudio(MelSpecTransformBase):
                 hop_length=self.hop_length, 
                 n_mels=self.n_mels)]
 
+    def slice(self, audio):
+        """Crop to time_slice seconds: random offset, or centred if not random_slice."""
+        n = audio.shape[-1]
+        if self.slice_len is None or n <= self.slice_len:
+            return audio
+        if self.random_slice:
+            start = int(torch.randint(0, n - self.slice_len + 1, ()))
+        else:
+            start = (n - self.slice_len) // 2
+        return audio[..., start : start + self.slice_len]
+
     def __call__(self, audio):
+        audio = self.slice(audio)
         if self.mono:
             audio = audio.mean(axis=0)[None, :]
         out = audio
