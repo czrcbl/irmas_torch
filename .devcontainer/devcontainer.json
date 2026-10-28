@@ -1,0 +1,37 @@
+{
+  "name": "irmas_torch",
+  "build": {
+    "dockerfile": "Containerfile"
+  },
+  "runArgs": [
+    "--device=nvidia.com/gpu=all",
+    "--userns=keep-id:uid=1000,gid=1000",
+    "--security-opt=label=disable",
+    "--shm-size=8g"
+  ],
+  "containerUser": "vscode",
+  "remoteUser": "vscode",
+  "updateRemoteUserUID": false,
+  "containerEnv": {
+    "UV_PYTHON_DOWNLOADS": "never",
+    "UV_LINK_MODE": "copy"
+  },
+  "mounts": [
+    "source=irmas-torch-uv-cache,target=/home/vscode/.cache/uv,type=volume",
+    "source=irmas-torch-mise,target=/home/vscode/.local/share/mise,type=volume",
+    "source=${localEnv:HOME}/.claude,target=/home/vscode/.claude,type=bind"
+  ],
+  "postCreateCommand": "mise trust && mise install && uv sync",
+  "postStartCommand": "uv run python -c \"import torch; print('CUDA available:', torch.cuda.is_available(), torch.cuda.get_device_name(0) if torch.cuda.is_available() else '')\"",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-toolsai.jupyter"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "${containerWorkspaceFolder}/.venv/bin/python"
+      }
+    }
+  }
+}

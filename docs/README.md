@@ -10,6 +10,7 @@ Start with [architecture.md](architecture.md).
 | Doc | Covers |
 |-----|--------|
 | [architecture.md](architecture.md) | How the parts fit together |
+| [devcontainer.md](devcontainer.md) | Podman dev container with NVIDIA GPU (CDI): setup and why each setting |
 | [environment.md](environment.md) | Python 3.14 / uv setup, dependency roles, API changes from the migration, legacy scripts |
 
 ## Decisions

@@ -1,0 +1,4 @@
+[tools]
+python = "3.14.9"
+# Keep in step with the uv_build pin (<0.14) in pyproject.toml
+uv = "0.13.5"

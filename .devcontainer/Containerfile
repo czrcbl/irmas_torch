@@ -1,0 +1,17 @@
+FROM mcr.microsoft.com/devcontainers/base:2-trixie
+
+# mise installs the tools: Python and uv from the project's mise.toml, Claude
+# Code from the user config below.
+ARG MISE_VERSION=v2026.10.19
+RUN curl -fsSL https://mise.run \
+    | MISE_VERSION=${MISE_VERSION} MISE_INSTALL_PATH=/usr/local/bin/mise sh
+
+# Shims make mise tools visible to every process (lifecycle commands,
+# `podman exec`), not just interactive shells with `mise activate`.
+ENV PATH=/home/vscode/.local/share/mise/shims:${PATH}
+
+# Mount points for the named volumes in devcontainer.json; podman copies their
+# ownership into fresh volumes (otherwise root-owned).
+RUN mkdir -p /home/vscode/.cache/uv /home/vscode/.local/share/mise /home/vscode/.config/mise \
+    && printf '[tools]\nclaude = "latest"\n' > /home/vscode/.config/mise/config.toml \
+    && chown -R vscode:vscode /home/vscode/.cache /home/vscode/.local /home/vscode/.config

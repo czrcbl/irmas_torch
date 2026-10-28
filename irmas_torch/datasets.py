@@ -17,7 +17,8 @@ class IRMASDataset(tdata.Dataset):
         self, transform, root, mode="train", train_fraq=0.9, seed=101, **kwargs
     ):
         super().__init__()
-        self.root = root
+        # Relative to the project root, not the cwd (Hydra chdirs into outputs/)
+        self.root = root if os.path.isabs(root) else pjoin(cfg.project_path, root)
         self.mode = mode
         self.train_fraq = train_fraq
         self.seed = seed

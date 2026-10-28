@@ -1,5 +1,5 @@
 dataset_name: irmas
-root: /home/cezar/Projects/irmas_torch/data/IRMAS
+root: data/IRMAS  # relative paths are resolved against the project root
 output_dim: 11
 input_dim: 1
 orig_fs: 44100

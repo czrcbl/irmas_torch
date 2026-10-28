@@ -8,13 +8,16 @@ The networks are implemented in [PyTorch](https://pytorch.org/), and rely on [To
 
 ## Setup
 
-Requires Python 3.14 and [uv](https://docs.astral.sh/uv/).
+Develop in the dev container (`.devcontainer/`), which installs Python 3.14
+and [uv](https://docs.astral.sh/uv/) with [mise](https://mise.jdx.dev).
 
 ```sh
 uv sync
 uv run python train.py                       # train with config/ (Hydra)
 uv run python train.py +experiment=exp0      # also apply config/experiment/exp0.yaml
 ```
+
+A podman dev container with GPU support is in `.devcontainer/`; see [docs/devcontainer.md](docs/devcontainer.md).
 
 See [`docs/`](docs/README.md) for how it works and why.
 

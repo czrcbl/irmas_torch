@@ -1,6 +1,9 @@
 # Environment and dependencies
 
 Python **3.14**, managed with **uv** (see [decisions/001](decisions/001-uv-and-pep-621-instead-of-poetry.md)).
+Python (3.14.9) and uv versions are pinned in `mise.toml`. Development
+happens in the dev container ([devcontainer.md](devcontainer.md)), which
+installs them with mise.
 
 ```sh
 uv sync                                   # install into .venv
